@@ -1,0 +1,193 @@
+openapi: 3.0.0
+info:
+  title: Go Auth Backend API
+  description: Authentication API with JWT, refresh tokens, email verification, and password recovery.
+  version: 1.0.0
+
+servers:
+  - url: https://go-auth-backend-api.vercel.app/api/v1
+
+paths:
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, display_name]
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+                  example: pass@123
+                display_name:
+                  type: string
+                  example: hajith
+      responses:
+        "200":
+          description: User registered successfully
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+                  example: pass@123
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: jwt_token_here
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Uses HTTP-only refresh token cookie
+      responses:
+        "200":
+          description: New access token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      responses:
+        "200":
+          description: Logout successful
+
+  /auth/verification-email:
+    post:
+      summary: Verify email
+      parameters:
+        - in: query
+          name: token
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Email verified
+
+  /auth/change-password:
+    post:
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, old_password, new_password]
+              properties:
+                email:
+                  type: string
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        "200":
+          description: Password changed successfully
+
+  /auth/forgot-password:
+    post:
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        "200":
+          description: OTP sent to email
+
+  /auth/forgot-password-verify:
+    post:
+      summary: Verify OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        "200":
+          description: OTP verified
+
+  /auth/forgot-password-update:
+    post:
+      summary: Update password after OTP verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Password updated successfully
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
