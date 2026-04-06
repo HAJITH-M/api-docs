@@ -1,193 +1,336 @@
 openapi: 3.0.0
 info:
   title: Go Auth Backend API
-  description: Authentication API with JWT, refresh tokens, email verification, and password recovery.
+  description: Authentication API with JWT access token and refresh token (HTTP-only cookie).
   version: 1.0.0
 
 servers:
   - url: https://go-auth-backend-api.vercel.app/api/v1
 
+tags:
+  - name: Auth
+    description: Authentication related endpoints
+
 paths:
 
   /auth/register:
     post:
+      tags: [Auth]
       summary: Register a new user
+      description: Creates a new user account.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password, display_name]
-              properties:
-                email:
-                  type: string
-                  example: user@example.com
-                password:
-                  type: string
-                  example: pass@123
-                display_name:
-                  type: string
-                  example: hajith
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
         "200":
           description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "400":
+          description: Bad request
 
   /auth/login:
     post:
+      tags: [Auth]
       summary: Login user
+      description: |
+        Returns access token in response body.
+        Sets refresh token as HTTP-only cookie.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password]
-              properties:
-                email:
-                  type: string
-                  example: user@example.com
-                password:
-                  type: string
-                  example: pass@123
+              $ref: "#/components/schemas/LoginRequest"
+
       responses:
         "200":
           description: Login successful
+          headers:
+            Set-Cookie:
+              description: Refresh token stored in HTTP-only cookie
+              schema:
+                type: string
+                example: refresh_token=xyz; HttpOnly; Secure; Path=/; SameSite=None
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
-                    example: jwt_token_here
+                $ref: "#/components/schemas/LoginResponse"
+
+        "401":
+          description: Invalid email or password
 
   /auth/refresh:
     post:
+      tags: [Auth]
       summary: Refresh access token
-      description: Uses HTTP-only refresh token cookie
+      description: |
+        Uses refresh token from HTTP-only cookie.
+        Returns new access token.
+      security:
+        - refreshCookieAuth: []
       responses:
         "200":
-          description: New access token generated
+          description: New access token generated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
+                $ref: "#/components/schemas/RefreshResponse"
+
+        "401":
+          description: Invalid or expired refresh token
 
   /auth/logout:
     post:
+      tags: [Auth]
       summary: Logout user
+      description: Clears refresh token cookie.
+      security:
+        - refreshCookieAuth: []
       responses:
         "200":
           description: Logout successful
+          headers:
+            Set-Cookie:
+              description: Clears refresh token cookie
+              schema:
+                type: string
+                example: refresh_token=; HttpOnly; Secure; Path=/; Max-Age=0
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
 
   /auth/verification-email:
     post:
+      tags: [Auth]
       summary: Verify email
+      description: Verifies user email using verification token.
+      security: []
       parameters:
         - in: query
           name: token
+          required: true
           schema:
             type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                password:
-                  type: string
+            example: verification_token_here
       responses:
         "200":
-          description: Email verified
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "400":
+          description: Invalid or expired token
 
   /auth/change-password:
     post:
+      tags: [Auth]
       summary: Change password
+      description: Change password using old password. Requires access token.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, old_password, new_password]
-              properties:
-                email:
-                  type: string
-                old_password:
-                  type: string
-                new_password:
-                  type: string
+              $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
         "200":
           description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "401":
+          description: Unauthorized or invalid old password
 
   /auth/forgot-password:
     post:
+      tags: [Auth]
       summary: Request password reset
+      description: Sends OTP to email for password reset.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email]
-              properties:
-                email:
-                  type: string
+              $ref: "#/components/schemas/ForgotPasswordRequest"
       responses:
         "200":
-          description: OTP sent to email
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "404":
+          description: Email not found
 
   /auth/forgot-password-verify:
     post:
+      tags: [Auth]
       summary: Verify OTP
+      description: Verifies OTP received in email.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, otp]
-              properties:
-                email:
-                  type: string
-                otp:
-                  type: string
+              $ref: "#/components/schemas/ForgotPasswordVerifyRequest"
       responses:
         "200":
-          description: OTP verified
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "400":
+          description: Invalid OTP
 
   /auth/forgot-password-update:
     post:
+      tags: [Auth]
       summary: Update password after OTP verification
+      description: Updates password after OTP is verified.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password]
-              properties:
-                email:
-                  type: string
-                password:
-                  type: string
+              $ref: "#/components/schemas/ForgotPasswordUpdateRequest"
       responses:
         "200":
           description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+        "400":
+          description: OTP not verified or invalid request
+
 
 components:
   securitySchemes:
+
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
 
-security:
-  - bearerAuth: []
+    refreshCookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+
+  schemas:
+
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: pass@123
+        display_name:
+          type: string
+          example: hajith
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: pass@123
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: jwt_access_token_here
+        message:
+          type: string
+          example: Login successful
+
+    RefreshResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: new_access_token_here
+
+    ChangePasswordRequest:
+      type: object
+      required: [email, old_password, new_password]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        old_password:
+          type: string
+          example: oldpass@123
+        new_password:
+          type: string
+          example: newpass@123
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+
+    ForgotPasswordVerifyRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        otp:
+          type: string
+          example: "123456"
+
+    ForgotPasswordUpdateRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: newpass@123
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Success
