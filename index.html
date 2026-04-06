@@ -14,6 +14,44 @@
 const ui = SwaggerUIBundle({
   url: "./swagger.yaml",
   dom_id: "#swagger-ui",
+
+  requestInterceptor: (req) => {
+    const token = localStorage.getItem("access_token");
+
+    if (token) {
+      req.headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    return req;
+  },
+
+  responseInterceptor: (res) => {
+    try {
+      // when login success, save access_token
+      if (res.url.includes("/auth/login")) {
+        const body = JSON.parse(res.data);
+
+        if (body.access_token) {
+          localStorage.setItem("access_token", body.access_token);
+          console.log("Access token saved automatically!");
+        }
+      }
+
+      // when refresh success, update access_token
+      if (res.url.includes("/auth/refresh")) {
+        const body = JSON.parse(res.data);
+
+        if (body.access_token) {
+          localStorage.setItem("access_token", body.access_token);
+          console.log("Access token refreshed automatically!");
+        }
+      }
+    } catch (err) {
+      console.log("Interceptor parse error:", err);
+    }
+
+    return res;
+  }
 });
 </script>
 
